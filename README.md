@@ -20,7 +20,7 @@ Add the following folder to your project, in *Project > Options > Resource Compi
 ```
 
 ## Getting Started
-You need to use WebSocket.Server
+You need to use WebSocket.Client
 ```pascal
 uses WebSocket.Client;
 ```
