@@ -25,8 +25,6 @@ object FrmMainMenu: TFrmMainMenu
     Align = alClient
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitTop = 81
-    ExplicitHeight = 480
     object Panel4: TPanel
       Left = 0
       Top = 65
@@ -45,7 +43,6 @@ object FrmMainMenu: TFrmMainMenu
       ParentBackground = False
       ParentFont = False
       TabOrder = 0
-      ExplicitTop = 81
     end
     object DBGridLog: TDBGrid
       Left = 0

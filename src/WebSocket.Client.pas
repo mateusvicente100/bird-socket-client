@@ -3,7 +3,7 @@ unit WebSocket.Client;
 interface
 
 uses System.Classes, System.SyncObjs, System.SysUtils, System.Math, System.Threading, System.DateUtils, IdURI, IdGlobal,
-  IdTCPClient, IdSSLOpenSSL, IdCoderMIME, IdHashSHA, WebSocket.Client.Types;
+  IdTCPClient, IdSSLOpenSSL, IdCoderMIME, IdHashSHA, WebSocket.Client.Types, System.JSON;
 
 type
   TWebSocketClient = class(TIdTCPClient)
@@ -51,6 +51,7 @@ type
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TEventListenerError); overload;
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TNotifyEvent); overload;
     procedure Send(const AMessage: string);
+    procedure Send(const AJSONObject: TJSONOject; const AOwns: Boolean = True); overload;
     procedure Close;
     destructor Destroy; override;
   end;
@@ -461,6 +462,13 @@ begin
   finally
     FInternalLock.Leave;
   end;
+end;
+
+procedure TWebSocketClient.Send(const AJSONObject: TJSONOject; const AOwns: Boolean);
+begin
+  Send(AJSONObject.ToString);
+  if AOwns then
+    AJSONObject.Free;
 end;
 
 procedure TWebSocketClient.SendCloseHandshake;

@@ -6,9 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, FireDAC.Stan.Intf, FireDAC.Stan.Option, FireDAC.Stan.Param,
   FireDAC.Stan.Error, FireDAC.DatS, FireDAC.Phys.Intf, FireDAC.DApt.Intf, Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client,
-  Vcl.Grids, Vcl.DBGrids, IdBaseComponent, IdComponent, IdCustomTCPServer, IdSocksServer, IdIOHandler, IdIOHandlerSocket,
-  IdIOHandlerStack, IdSSL, IdSSLOpenSSL, IdServerIOHandler, IdServerIOHandlerSocket, IdServerIOHandlerStack, IdIOHandlerStream,
-  IdIntercept, IdGlobal, WebSocket.Client, WebSocket.Client.Types;
+  Vcl.Grids, Vcl.DBGrids, WebSocket.Client, WebSocket.Client.Types;
 
 type
   TFrmMainMenu = class(TForm)
@@ -48,6 +46,7 @@ procedure TFrmMainMenu.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   if FWebSocket.Connected then
     FWebSocket.Disconnect;
+  FWebSocket.DisposeOf;
 end;
 
 procedure TFrmMainMenu.FormCreate(Sender: TObject);
