@@ -50,8 +50,8 @@ type
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TEventListener); overload;
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TEventListenerError); overload;
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TNotifyEvent); overload;
-    procedure Send(const AMessage: string);
-    procedure Send(const AJSONObject: TJSONOject; const AOwns: Boolean = True); overload;
+    procedure Send(const AMessage: string); overload;
+    procedure Send(const AJSONObject: TJSONObject; const AOwns: Boolean = True); overload;
     procedure Close;
     destructor Destroy; override;
   end;
@@ -120,17 +120,16 @@ end;
 
 procedure TWebSocketClient.Close;
 begin
+  if not Connected then
+    Exit;
   FInternalLock.Enter;
   try
-    if Connected then
-    begin
-      SendCloseHandshake;
-      FIOHandler.InputBuffer.Clear;
-      FIOHandler.CloseGracefully;
-      Disconnect;
-      if Assigned(FOnClose) then
-        FOnClose(Self);
-    end;
+    SendCloseHandshake;
+    FIOHandler.InputBuffer.Clear;
+    FIOHandler.CloseGracefully;
+    Disconnect;
+    if Assigned(FOnClose) then
+      FOnClose(Self);
   finally
     FInternalLock.Leave;
   end;
@@ -204,9 +203,9 @@ end;
 
 destructor TWebSocketClient.Destroy;
 begin
-  FInternalLock.Free;
   if FAutoCreateHandler and Assigned(FIOHandler) then
     FIOHandler.Free;
+  FInternalLock.Free;
   inherited;
 end;
 
@@ -464,11 +463,14 @@ begin
   end;
 end;
 
-procedure TWebSocketClient.Send(const AJSONObject: TJSONOject; const AOwns: Boolean);
+procedure TWebSocketClient.Send(const AJSONObject: TJSONObject; const AOwns: Boolean);
 begin
-  Send(AJSONObject.ToString);
-  if AOwns then
-    AJSONObject.Free;
+  try
+    Send(AJSONObject.ToString);
+  finally
+    if AOwns then
+      AJSONObject.Free;
+  end;
 end;
 
 procedure TWebSocketClient.SendCloseHandshake;

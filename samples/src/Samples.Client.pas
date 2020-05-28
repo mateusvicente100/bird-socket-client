@@ -46,7 +46,7 @@ procedure TFrmMainMenu.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   if FWebSocket.Connected then
     FWebSocket.Disconnect;
-  FWebSocket.DisposeOf;
+  FWebSocket.Free;
 end;
 
 procedure TFrmMainMenu.FormCreate(Sender: TObject);
