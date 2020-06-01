@@ -6,7 +6,7 @@ uses System.SysUtils;
 
 type
   TEventListener = reference to procedure(const AText: string);
-  TEventListenerError = reference to procedure(const AException: Exception; var AForceDisconnect);
+  TEventListenerError = reference to procedure(const AException: Exception; var AForceDisconnect: Boolean);
 
 {$SCOPEDENUMS ON}
   TOperationCode = (CONTINUE, TEXT_FRAME, BINARY_FRAME, CONNECTION_CLOSE, PING, PONG);
