@@ -58,4 +58,5 @@ Check out our sample project for the Delphi bird sokect client connection. If yo
 
 ## Delphi Client
 
-![sample-client](samples/images/sample-client.png)
+| ![sample-client](samples/images/sample-client.png) |
+| :--: |
