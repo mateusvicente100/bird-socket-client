@@ -1,12 +1,12 @@
-unit WebSocket.Client;
+unit Bird.Socket.Client;
 
 interface
 
 uses System.Classes, System.SyncObjs, System.SysUtils, System.Math, System.Threading, System.DateUtils, IdURI, IdGlobal,
-  IdTCPClient, IdSSLOpenSSL, IdCoderMIME, IdHashSHA, WebSocket.Client.Types, System.JSON;
+  IdTCPClient, IdSSLOpenSSL, IdCoderMIME, IdHashSHA, Bird.Socket.Client.Types, System.JSON;
 
 type
-  TWebSocketClient = class(TIdTCPClient)
+  TBirdSocketClient = class(TIdTCPClient)
   private
     FInternalLock: TCriticalSection;
     FURL: string;
@@ -42,7 +42,7 @@ type
     property OnHeartBeatTimer: TNotifyEvent read FOnHeartBeatTimer write FOnHeartBeatTimer;
     property OnUpgrade: TNotifyEvent read FOnUpgrade write FOnUpgrade;
   public
-    class function New(const AURL: string): TWebSocketClient;
+    class function New(const AURL: string): TBirdSocketClient;
     property HeartBeatInterval: Cardinal read FHeartBeatInterval write FHeartBeatInterval;
     property AutoCreateHandler: Boolean read FAutoCreateHandler write FAutoCreateHandler;
     function Connected: Boolean; override;
@@ -58,7 +58,7 @@ type
 
 implementation
 
-procedure TWebSocketClient.AddEventListener(const AEventType: TEventType; const AEvent: TNotifyEvent);
+procedure TBirdSocketClient.AddEventListener(const AEventType: TEventType; const AEvent: TNotifyEvent);
 begin
   case AEventType of
     TEventType.CLOSE:
@@ -84,7 +84,7 @@ begin
   end;
 end;
 
-procedure TWebSocketClient.AddEventListener(const AEventType: TEventType; const AEvent: TEventListenerError);
+procedure TBirdSocketClient.AddEventListener(const AEventType: TEventType; const AEvent: TEventListenerError);
 begin
   if (AEventType <> TEventType.ERROR) then
     raise Exception.Create('This is not an valid event!');
@@ -93,7 +93,7 @@ begin
   FOnError := AEvent;
 end;
 
-procedure TWebSocketClient.AddEventListener(const AEventType: TEventType; const AEvent: TEventListener);
+procedure TBirdSocketClient.AddEventListener(const AEventType: TEventType; const AEvent: TEventListener);
 begin
   case AEventType of
     TEventType.OPEN:
@@ -113,12 +113,12 @@ begin
   end;
 end;
 
-function TWebSocketClient.ClearBit(const AValue: Cardinal; const AByte: Byte): Cardinal;
+function TBirdSocketClient.ClearBit(const AValue: Cardinal; const AByte: Byte): Cardinal;
 begin
   Result := AValue and not (1 shl AByte);
 end;
 
-procedure TWebSocketClient.Close;
+procedure TBirdSocketClient.Close;
 begin
   if not Connected then
     Exit;
@@ -135,7 +135,7 @@ begin
   end;
 end;
 
-procedure TWebSocketClient.Connect;
+procedure TBirdSocketClient.Connect;
 var
   LURI: TIdURI;
   LSecure: Boolean;
@@ -182,7 +182,7 @@ begin
   end;
 end;
 
-function TWebSocketClient.Connected: Boolean;
+function TBirdSocketClient.Connected: Boolean;
 begin
   try
     Result := inherited;
@@ -191,7 +191,7 @@ begin
   end;
 end;
 
-constructor TWebSocketClient.Create(const AURL: string);
+constructor TBirdSocketClient.Create(const AURL: string);
 begin
   inherited Create(nil);
   FInternalLock := TCriticalSection.Create;
@@ -201,7 +201,7 @@ begin
   Randomize;
 end;
 
-destructor TWebSocketClient.Destroy;
+destructor TBirdSocketClient.Destroy;
 begin
   if FAutoCreateHandler and Assigned(FIOHandler) then
     FIOHandler.Free;
@@ -209,7 +209,7 @@ begin
   inherited;
 end;
 
-function TWebSocketClient.EncodeFrame(const AMessage: string; const AOperationCode: TOperationCode): TIdBytes;
+function TBirdSocketClient.EncodeFrame(const AMessage: string; const AOperationCode: TOperationCode): TIdBytes;
 var
   LFin, LMask: Cardinal;
   LMaskingKey: array[0..3] of cardinal;
@@ -266,7 +266,7 @@ begin
   Result := LBuffer;
 end;
 
-function TWebSocketClient.GenerateWebSocketKey: string;
+function TBirdSocketClient.GenerateWebSocketKey: string;
 var
   LBytes: TIdBytes;
   I: Integer;
@@ -278,12 +278,12 @@ begin
   SetSecWebSocketAcceptExpectedResponse(Result + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11');
 end;
 
-function TWebSocketClient.GetBit(const AValue: Cardinal; const AByte: Byte): Boolean;
+function TBirdSocketClient.GetBit(const AValue: Cardinal; const AByte: Byte): Boolean;
 begin
   Result := (AValue and (1 shl AByte)) <> 0;
 end;
 
-procedure TWebSocketClient.HandleException(const AException: Exception);
+procedure TBirdSocketClient.HandleException(const AException: Exception);
 var
   LForceDisconnect: Boolean;
 begin
@@ -294,7 +294,7 @@ begin
     Close;
 end;
 
-function TWebSocketClient.IsValidHeaders(const AHeaders: TStrings): Boolean;
+function TBirdSocketClient.IsValidHeaders(const AHeaders: TStrings): Boolean;
 begin
   Result := False;
   AHeaders.NameValueSeparator := ':';
@@ -312,7 +312,7 @@ begin
   end;
 end;
 
-function TWebSocketClient.IsValidWebSocket: Boolean;
+function TBirdSocketClient.IsValidWebSocket: Boolean;
 var
   LSpool: string;
   LByte: Byte;
@@ -358,12 +358,12 @@ begin
   end;
 end;
 
-class function TWebSocketClient.New(const AURL: string): TWebSocketClient;
+class function TBirdSocketClient.New(const AURL: string): TBirdSocketClient;
 begin
-  Result := TWebSocketClient.Create(AURL);
+  Result := TBirdSocketClient.Create(AURL);
 end;
 
-procedure TWebSocketClient.ReadFromWebSocket;
+procedure TBirdSocketClient.ReadFromWebSocket;
 var
   LTask: ITask;
   LOperationCode: Byte;
@@ -453,7 +453,7 @@ begin
     OnUpgrade(Self);
 end;
 
-procedure TWebSocketClient.Send(const AMessage: string);
+procedure TBirdSocketClient.Send(const AMessage: string);
 begin
   try
     FInternalLock.Enter;
@@ -463,7 +463,7 @@ begin
   end;
 end;
 
-procedure TWebSocketClient.Send(const AJSONObject: TJSONObject; const AOwns: Boolean);
+procedure TBirdSocketClient.Send(const AJSONObject: TJSONObject; const AOwns: Boolean);
 begin
   try
     Send(AJSONObject.ToString);
@@ -473,14 +473,14 @@ begin
   end;
 end;
 
-procedure TWebSocketClient.SendCloseHandshake;
+procedure TBirdSocketClient.SendCloseHandshake;
 begin
   FClosingEventLocalHandshake := true;
   FSocket.Write(EncodeFrame(EmptyStr, TOperationCode.CONNECTION_CLOSE));
   TThread.Sleep(200);
 end;
 
-procedure TWebSocketClient.SetSecWebSocketAcceptExpectedResponse(const AValue: string);
+procedure TBirdSocketClient.SetSecWebSocketAcceptExpectedResponse(const AValue: string);
 var
   LHash: TIdHashSHA1;
 begin
@@ -492,7 +492,7 @@ begin
   end;
 end;
 
-procedure TWebSocketClient.StartHeartBeat;
+procedure TBirdSocketClient.StartHeartBeat;
 var
   LDateLastNotify: TDateTime;
 begin
@@ -518,7 +518,7 @@ begin
     end).Start;
 end;
 
-function TWebSocketClient.SetBit(const AValue: Cardinal; const AByte: Byte): Cardinal;
+function TBirdSocketClient.SetBit(const AValue: Cardinal; const AByte: Byte): Cardinal;
 begin
   Result := AValue or (1 shl AByte);
 end;

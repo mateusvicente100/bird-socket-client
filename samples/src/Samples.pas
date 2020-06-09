@@ -1,4 +1,4 @@
-unit Samples.Client;
+unit Samples;
 
 interface
 
@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, FireDAC.Stan.Intf, FireDAC.Stan.Option, FireDAC.Stan.Param,
   FireDAC.Stan.Error, FireDAC.DatS, FireDAC.Phys.Intf, FireDAC.DApt.Intf, Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client,
-  Vcl.Grids, Vcl.DBGrids, WebSocket.Client, WebSocket.Client.Types;
+  Vcl.Grids, Vcl.DBGrids, Bird.Socket.Client, Bird.Socket.Client.Types;
 
 type
   TFrmMainMenu = class(TForm)
@@ -26,7 +26,7 @@ type
     procedure btnSendClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
   private
-    FWebSocket: TWebSocketClient;
+    FBirdSocket: TBirdSocketClient;
     procedure Log(const AValue: string);
   end;
 
@@ -39,26 +39,26 @@ implementation
 
 procedure TFrmMainMenu.btnSendClick(Sender: TObject);
 begin
-  FWebSocket.Send(edtText.Text);
+  FBirdSocket.Send(edtText.Text);
 end;
 
 procedure TFrmMainMenu.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  if FWebSocket.Connected then
-    FWebSocket.Disconnect;
-  FWebSocket.Free;
+  if FBirdSocket.Connected then
+    FBirdSocket.Disconnect;
+  FBirdSocket.Free;
 end;
 
 procedure TFrmMainMenu.FormCreate(Sender: TObject);
 begin
-  FWebSocket := TWebSocketClient.New('ws://localhost:8080');
-  FWebSocket.AddEventListener(TEventType.MESSAGE,
+  FBirdSocket := TBirdSocketClient.New('ws://localhost:8080');
+  FBirdSocket.AddEventListener(TEventType.MESSAGE,
     procedure(const AText: string)
     begin
       Log(AText);
     end);
-  FWebSocket.Connect;
-  FWebSocket.Send('Hello Server');
+  FBirdSocket.Connect;
+  FBirdSocket.Send('Hello Server');
 end;
 
 procedure TFrmMainMenu.Log(const AValue: string);

@@ -1,4 +1,4 @@
-program WebSocket.Samples.Client;
+program Bird.Socket.Samples;
 
 uses
   Vcl.Forms,

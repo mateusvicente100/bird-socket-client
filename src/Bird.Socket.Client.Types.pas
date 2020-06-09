@@ -1,4 +1,4 @@
-unit WebSocket.Client.Types;
+unit Bird.Socket.Client.Types;
 
 interface
 
