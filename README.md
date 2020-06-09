@@ -37,18 +37,18 @@ Create an instance of TWebSocketClient and assign the propertys and events liste
 ```pascal
 procedure Start;
 var
-  LWebSocket: TBirdSocketClient;
+  LBirdSocket: TBirdSocketClient;
 begin
-  LWebSocket := TBirdSocketClient.New('ws://localhost:8080');
+  LBirdSocket := TBirdSocketClient.New('ws://localhost:8080');
 
-  LWebSocket.AddEventListener(TEventType.MESSAGE,
+  LBirdSocket.AddEventListener(TEventType.MESSAGE,
     procedure(const AText: string)
     begin
       Log(AText);
     end);
 
-  LWebSocket.Connect;
-  LWebSocket.Send('Hello Server');
+  LBirdSocket.Connect;
+  LBirdSocket.Send('Hello Server');
 end;
 ```
 
