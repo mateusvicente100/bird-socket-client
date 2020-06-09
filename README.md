@@ -58,5 +58,6 @@ Check out our sample project for the Delphi bird sokect client connection. If yo
 
 ## Delphi Client
 
-| ![sample-client](samples/images/sample-client.png) |
-| :--: |
+<p align="center">
+  <img src="samples/images/sample-client.png">
+</p>
