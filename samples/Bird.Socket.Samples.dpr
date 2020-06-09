@@ -2,10 +2,10 @@ program Bird.Socket.Samples;
 
 uses
   Vcl.Forms,
-  Samples.Client in 'src\Samples.Client.pas' {FrmMainMenu},
-  WebSocket.Client.Consts in '..\src\WebSocket.Client.Consts.pas',
-  WebSocket.Client in '..\src\WebSocket.Client.pas',
-  WebSocket.Client.Types in '..\src\WebSocket.Client.Types.pas';
+  Samples in 'src\Samples.pas' {FrmMainMenu},
+  Bird.Socket.Client.Consts in '..\src\Bird.Socket.Client.Consts.pas',
+  Bird.Socket.Client in '..\src\Bird.Socket.Client.pas',
+  Bird.Socket.Client.Types in '..\src\Bird.Socket.Client.Types.pas';
 
 {$R *.res}
 

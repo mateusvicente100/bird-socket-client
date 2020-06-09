@@ -98,13 +98,13 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="src\Samples.Client.pas">
+        <DCCReference Include="src\Samples.pas">
             <Form>FrmMainMenu</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="..\src\WebSocket.Client.Consts.pas"/>
-        <DCCReference Include="..\src\WebSocket.Client.pas"/>
-        <DCCReference Include="..\src\WebSocket.Client.Types.pas"/>
+        <DCCReference Include="..\src\Bird.Socket.Client.Consts.pas"/>
+        <DCCReference Include="..\src\Bird.Socket.Client.pas"/>
+        <DCCReference Include="..\src\Bird.Socket.Client.Types.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
