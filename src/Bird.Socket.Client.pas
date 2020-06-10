@@ -146,7 +146,10 @@ begin
   try
     FClosingEventLocalHandshake := False;
     FHost := LURI.Host;
-    LURI.Protocol := ReplaceOnlyFirst(LURI.Protocol.ToLower, 'ws', 'http');
+    if LURI.Protocol.Contains('wss') then
+      LURI.Protocol := ReplaceOnlyFirst(LURI.Protocol.ToLower, 'wss', 'https')
+    else
+      LURI.Protocol := ReplaceOnlyFirst(LURI.Protocol.ToLower, 'ws', 'http');
     if LURI.Path.Trim.IsEmpty then
       LURI.Path := '/';
     LSecure := LURI.Protocol.ToLower.Equals('https');
@@ -157,7 +160,7 @@ begin
     begin
       if FAutoCreateHandler then
       begin
-        FIOHandler := TIdSSLIOHandlerSocketOpenSSL.Create(Self);
+        SetIOHandler(TIdSSLIOHandlerSocketOpenSSL.Create(Self));
         TIdSSLIOHandlerSocketOpenSSL(FIOHandler).SSLOptions.Mode := TIdSSLMode.sslmClient;
         TIdSSLIOHandlerSocketOpenSSL(FIOHandler).SSLOptions.SSLVersions := [TIdSSLVersion.sslvTLSv1, TIdSSLVersion.sslvTLSv1_1, TIdSSLVersion.sslvTLSv1_2];
       end
