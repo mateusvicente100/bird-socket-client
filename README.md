@@ -1,13 +1,14 @@
 # Bird Socket Client
 
+This is a client for websocket connection in Delphi.
+
 ![Delphi Supported Versions](https://img.shields.io/badge/Delphi%20Supported%20Versions-10.1%20and%20ever-blue.svg)
 ![Platforms](https://img.shields.io/badge/Supported%20platforms-Win32%20and%20Win64-red.svg)
 
-This is a client for websocket connection in Delphi.
-
 ## Prerequisites
 
-* `[Optional]` For ease I recommend using the Boss for installation
+`[Optional]` For ease I recommend using the Boss for installation
+
 * [**Boss**](https://github.com/HashLoad/boss) - Dependency Manager for Delphi
 
 ## Installation using Boss (dependency manager for Delphi applications)

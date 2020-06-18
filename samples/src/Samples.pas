@@ -3,7 +3,7 @@ unit Samples;
 interface
 
 uses Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms,
-  Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Grids, Vcl.DBGrids, Bird.Socket.Client, Bird.Socket.Client.Types, dxGDIPlusClasses;
+  Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Grids, Vcl.DBGrids, Bird.Socket.Client, dxGDIPlusClasses;
 
 type
   TFrmMainMenu = class(TForm)

@@ -6,6 +6,8 @@ uses System.Classes, System.SyncObjs, System.SysUtils, System.Math, System.Threa
   IdTCPClient, IdSSLOpenSSL, IdCoderMIME, IdHashSHA, Bird.Socket.Client.Types, System.JSON;
 
 type
+  TOperationCode = Bird.Socket.Client.Types.TOperationCode;
+  TEventType = Bird.Socket.Client.Types.TEventType;
   TBirdSocketClient = class(TIdTCPClient)
   private
     FInternalLock: TCriticalSection;
