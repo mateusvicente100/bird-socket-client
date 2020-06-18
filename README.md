@@ -56,8 +56,6 @@ end;
 
 Check out our sample project for the Delphi bird sokect client connection. If you have any questions or suggestion, please contact, make your pull request or create an issue.
 
-## Delphi Client
-
 <p align="center">
   <img src="samples/images/sample-client.png">
 </p>

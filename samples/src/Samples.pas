@@ -2,32 +2,37 @@ unit Samples;
 
 interface
 
-uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, FireDAC.Stan.Intf, FireDAC.Stan.Option, FireDAC.Stan.Param,
-  FireDAC.Stan.Error, FireDAC.DatS, FireDAC.Phys.Intf, FireDAC.DApt.Intf, Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client,
-  Vcl.Grids, Vcl.DBGrids, Bird.Socket.Client, Bird.Socket.Client.Types;
+uses Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms,
+  Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.Grids, Vcl.DBGrids, Bird.Socket.Client, Bird.Socket.Client.Types, dxGDIPlusClasses;
 
 type
   TFrmMainMenu = class(TForm)
-    Panel3: TPanel;
-    Panel4: TPanel;
-    mtServerLog: TFDMemTable;
-    mtServerLogID: TIntegerField;
-    mtServerLogDATE: TDateField;
-    dsServerLog: TDataSource;
-    DBGridLog: TDBGrid;
-    mtServerLogMESSAGE: TStringField;
-    Panel5: TPanel;
-    Panel6: TPanel;
+    Panel1: TPanel;
+    edtServer: TEdit;
+    btnDisconnect: TButton;
+    btnConnect: TButton;
+    Panel7: TPanel;
+    imgHeader: TImage;
+    lblServer: TLabel;
     btnSend: TButton;
     edtText: TEdit;
-    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    btnClear: TButton;
+    Label1: TLabel;
+    ListBoxLog: TListBox;
+    imgClose: TImage;
     procedure btnSendClick(Sender: TObject);
-    procedure FormCreate(Sender: TObject);
+    procedure btnClearClick(Sender: TObject);
+    procedure btnConnectClick(Sender: TObject);
+    procedure btnDisconnectClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormShow(Sender: TObject);
+    procedure imgCloseClick(Sender: TObject);
   private
     FBirdSocket: TBirdSocketClient;
+    procedure Connect;
+    procedure Disconnect;
     procedure Log(const AValue: string);
+    procedure HandlerButtons(const AConnected: Boolean);
   end;
 
 var
@@ -37,47 +42,87 @@ implementation
 
 {$R *.dfm}
 
+procedure TFrmMainMenu.btnClearClick(Sender: TObject);
+begin
+  ListBoxLog.Clear;
+end;
+
+procedure TFrmMainMenu.btnConnectClick(Sender: TObject);
+begin
+  Connect;
+end;
+
+procedure TFrmMainMenu.btnDisconnectClick(Sender: TObject);
+begin
+  Disconnect;
+end;
+
 procedure TFrmMainMenu.btnSendClick(Sender: TObject);
 begin
   FBirdSocket.Send(edtText.Text);
 end;
 
-procedure TFrmMainMenu.FormClose(Sender: TObject; var Action: TCloseAction);
+procedure TFrmMainMenu.Connect;
 begin
-  if FBirdSocket.Connected then
-    FBirdSocket.Disconnect;
-  FBirdSocket.Free;
+  try
+    FBirdSocket := TBirdSocketClient.New(edtServer.Text);
+    FBirdSocket.AddEventListener(TEventType.MESSAGE,
+      procedure(const AText: string)
+      begin
+        Log(AText);
+      end);
+    FBirdSocket.Connect;
+    FBirdSocket.Send('Hello Server');
+    HandlerButtons(True);
+  except
+    on E:Exception do
+    begin
+      Disconnect;
+      Log(E.Message);
+    end;
+  end
 end;
 
-procedure TFrmMainMenu.FormCreate(Sender: TObject);
+procedure TFrmMainMenu.Disconnect;
 begin
-  FBirdSocket := TBirdSocketClient.New('ws://localhost:8080');
-  FBirdSocket.AddEventListener(TEventType.MESSAGE,
-    procedure(const AText: string)
-    begin
-      Log(AText);
-    end);
-  FBirdSocket.Connect;
-  FBirdSocket.Send('Hello Server');
+  try
+    if not Assigned(FBirdSocket) then
+      Exit;
+    if FBirdSocket.Connected then
+      FBirdSocket.Disconnect;
+    FreeAndNil(FBirdSocket);
+    HandlerButtons(False);
+  except
+    on E:Exception do
+      Log(E.Message);
+  end
+end;
+
+procedure TFrmMainMenu.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Disconnect;
+end;
+
+procedure TFrmMainMenu.FormShow(Sender: TObject);
+begin
+  HandlerButtons(False);
+end;
+
+procedure TFrmMainMenu.HandlerButtons(const AConnected: Boolean);
+begin
+  btnSend.Enabled := AConnected;
+  btnDisconnect.Enabled := AConnected;
+  btnConnect.Enabled := not(AConnected);
+end;
+
+procedure TFrmMainMenu.imgCloseClick(Sender: TObject);
+begin
+  Close;
 end;
 
 procedure TFrmMainMenu.Log(const AValue: string);
 begin
-  mtServerLog.DisableControls;
-  try
-    if not mtServerLog.Active then
-      mtServerLog.Open;
-    mtServerLog.Append;
-    mtServerLogMESSAGE.AsString := AValue;
-    mtServerLogDATE.AsDateTime := Now;
-    mtServerLog.Post;
-  finally
-    TThread.Synchronize(TThread.Current,
-      procedure
-      begin
-        mtServerLog.EnableControls;
-      end);
-  end;
+  ListBoxLog.Items.Add(Format('%s | %s', [FormatDateTime('dd/mm/yyyy hh:mm:ss', Now), AValue]));
 end;
 
 end.
