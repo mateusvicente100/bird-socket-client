@@ -57,5 +57,5 @@ end;
 Check out our sample project for the Delphi bird sokect client connection. If you have any questions or suggestion, please contact, make your pull request or create an issue.
 
 <p align="center">
-  <img src="bird-socket-client-sample.png">
+  <img src="samples/images/bird-socket-client-sample.png">
 </p>
