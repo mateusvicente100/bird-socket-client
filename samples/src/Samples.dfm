@@ -29,7 +29,6 @@ object FrmMainMenu: TFrmMainMenu
     Color = 15790320
     ParentBackground = False
     TabOrder = 0
-    ExplicitWidth = 784
     DesignSize = (
       800
       105)
@@ -64,7 +63,7 @@ object FrmMainMenu: TFrmMainMenu
       Top = 25
       Width = 620
       Height = 21
-      Anchors = [akTop, akRight]
+      Anchors = [akLeft, akTop, akRight]
       TabOrder = 0
       Text = 'ws://localhost:8080'
     end
@@ -77,7 +76,6 @@ object FrmMainMenu: TFrmMainMenu
       Caption = 'Disconnect'
       TabOrder = 2
       OnClick = btnDisconnectClick
-      ExplicitLeft = 698
     end
     object btnConnect: TButton
       Left = 633
@@ -88,7 +86,6 @@ object FrmMainMenu: TFrmMainMenu
       Caption = 'Connect'
       TabOrder = 1
       OnClick = btnConnectClick
-      ExplicitLeft = 617
     end
     object btnSend: TButton
       Left = 633
@@ -99,14 +96,13 @@ object FrmMainMenu: TFrmMainMenu
       Caption = 'Send'
       TabOrder = 4
       OnClick = btnSendClick
-      ExplicitLeft = 617
     end
     object edtText: TEdit
       Left = 7
       Top = 71
       Width = 620
       Height = 21
-      Anchors = [akTop, akRight]
+      Anchors = [akLeft, akTop, akRight]
       TabOrder = 3
     end
     object btnClear: TButton
@@ -118,7 +114,6 @@ object FrmMainMenu: TFrmMainMenu
       Caption = 'Clear'
       TabOrder = 5
       OnClick = btnClearClick
-      ExplicitLeft = 698
     end
   end
   object Panel7: TPanel
@@ -129,7 +124,9 @@ object FrmMainMenu: TFrmMainMenu
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 1
-    ExplicitWidth = 784
+    DesignSize = (
+      800
+      40)
     object imgHeader: TImage
       Left = 0
       Top = 0
@@ -1973,6 +1970,7 @@ object FrmMainMenu: TFrmMainMenu
       Width = 30
       Height = 30
       Cursor = crHandPoint
+      Anchors = [akTop, akRight]
       Center = True
       Picture.Data = {
         0B546478504E47496D61676589504E470D0A1A0A0000000D4948445200000200
@@ -2252,8 +2250,5 @@ object FrmMainMenu: TFrmMainMenu
     ItemHeight = 17
     ParentFont = False
     TabOrder = 2
-    ExplicitTop = 152
-    ExplicitWidth = 770
-    ExplicitHeight = 402
   end
 end
