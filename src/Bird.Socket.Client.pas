@@ -35,6 +35,7 @@ type
     procedure SendCloseHandshake;
     procedure HandleException(const AException: Exception);
     procedure StartHeartBeat;
+    procedure Close;
     constructor Create(const AURL: string); reintroduce;
   protected
     property OnMessage: TEventListener read FOnMessage write FOnMessage;
@@ -54,7 +55,6 @@ type
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TNotifyEvent); overload;
     procedure Send(const AMessage: string); overload;
     procedure Send(const AJSONObject: TJSONObject; const AOwns: Boolean = True); overload;
-    procedure Close;
     destructor Destroy; override;
   end;
 
@@ -127,8 +127,11 @@ begin
   FInternalLock.Enter;
   try
     SendCloseHandshake;
-    FIOHandler.InputBuffer.Clear;
-    FIOHandler.CloseGracefully;
+    if Assigned(FIOHandler) then
+    begin
+      FIOHandler.InputBuffer.Clear;
+      FIOHandler.CloseGracefully;
+    end;
     Disconnect;
     if Assigned(FOnClose) then
       FOnClose(Self);
@@ -165,6 +168,8 @@ begin
         SetIOHandler(TIdSSLIOHandlerSocketOpenSSL.Create(Self));
         TIdSSLIOHandlerSocketOpenSSL(FIOHandler).SSLOptions.Mode := TIdSSLMode.sslmClient;
         TIdSSLIOHandlerSocketOpenSSL(FIOHandler).SSLOptions.SSLVersions := [TIdSSLVersion.sslvTLSv1, TIdSSLVersion.sslvTLSv1_1, TIdSSLVersion.sslvTLSv1_2];
+        TIdSSLIOHandlerSocketOpenSSL(FIOHandler).SSLOptions.Method := sslvTLSv1_2;
+        TIdSSLIOHandlerSocketOpenSSL(FIOHandler).PassThrough := False;
       end
       else
         raise Exception.Create('To use a secure connection you need to assign a TIdSSLIOHandlerSocketOpenSSL descendant');
@@ -190,7 +195,7 @@ end;
 function TBirdSocketClient.Connected: Boolean;
 begin
   try
-    Result := inherited;
+    Result := inherited Connected;
   except
     Result := False;
   end;
@@ -296,7 +301,7 @@ begin
   if Assigned(FOnError) then
     FOnError(AException, LForceDisconnect);
   if LForceDisconnect then
-    Close;
+    Self.Close;
 end;
 
 function TBirdSocketClient.IsValidHeaders(const AHeaders: TStrings): Boolean;
@@ -440,7 +445,7 @@ begin
               if (LOperationCode = TOperationCode.CONNECTION_CLOSE.ToByte) then
               begin
                 if not FClosingEventLocalHandshake then
-                  Close;
+                  Self.Close;
                 Break
               end;
             end;
@@ -480,7 +485,7 @@ end;
 
 procedure TBirdSocketClient.SendCloseHandshake;
 begin
-  FClosingEventLocalHandshake := true;
+  FClosingEventLocalHandshake := True;
   FSocket.Write(EncodeFrame(EmptyStr, TOperationCode.CONNECTION_CLOSE));
   TThread.Sleep(200);
 end;
