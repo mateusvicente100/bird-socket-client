@@ -330,8 +330,6 @@ begin
 end;
 
 function TBirdSocketClient.IsValidWebSocket: Boolean;
-const
-  READ_TIMEOUT = 30000;
 var
   LSpool: string;
   LByte: Byte;
@@ -342,7 +340,6 @@ begin
   try
     try
       FUpgraded := False;
-      FSocket.ReadTimeout := READ_TIMEOUT;
       while Connected and not FUpgraded do
       begin
         LByte := FSocket.ReadByte;
