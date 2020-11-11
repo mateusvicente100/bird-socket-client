@@ -2,8 +2,21 @@ unit Bird.Socket.Client;
 
 interface
 
-uses System.Classes, System.SyncObjs, System.SysUtils, System.Math, System.Threading, System.DateUtils, IdURI, IdGlobal,
-  IdTCPClient, IdSSLOpenSSL, IdCoderMIME, IdHashSHA, Bird.Socket.Client.Types, System.JSON;
+uses
+  System.Classes,
+  System.SyncObjs,
+  System.SysUtils,
+  System.Math,
+  System.Threading,
+  System.DateUtils,
+  IdURI,
+  IdGlobal,
+  IdTCPClient,
+  IdSSLOpenSSL,
+  IdCoderMIME,
+  IdHashSHA,
+  Bird.Socket.Client.Types,
+  System.JSON;
 
 type
   TOperationCode = Bird.Socket.Client.Types.TOperationCode;
@@ -23,6 +36,7 @@ type
     FOnError: TEventListenerError;
     FOnHeartBeatTimer: TNotifyEvent;
     FOnUpgrade: TNotifyEvent;
+    FSubProtocol: string;
     function GenerateWebSocketKey: string;
     function IsValidWebSocket: Boolean;
     function IsValidHeaders(const AHeaders: TStrings): Boolean;
@@ -53,6 +67,7 @@ type
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TEventListener); overload;
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TEventListenerError); overload;
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TNotifyEvent); overload;
+    procedure SetSubProtocol(Value: string);
     procedure Send(const AMessage: string); overload;
     procedure Send(const AJSONObject: TJSONObject; const AOwns: Boolean = True); overload;
     destructor Destroy; override;
@@ -187,6 +202,10 @@ begin
       LContent.Add('Upgrade: WebSocket');
       LContent.Add('Sec-WebSocket-Version: 13');
       LContent.Add(Format('Sec-WebSocket-Key: %s ', [GenerateWebSocketKey]));
+	  
+	  if FSubProtocol <> '' then
+        LContent.Add(Format('Sec-WebSocket-Protocol: %s', [FSubProtocol]));
+	  
       LContent.Add(EmptyStr);
       FSocket.WriteLn(LContent.Text);
     finally
@@ -215,6 +234,7 @@ begin
   FAutoCreateHandler := True;
   FHeartBeatInterval := 30000;
   FURL := AURL;
+  FSubProtocol := '';
   Randomize;
 end;
 
@@ -507,6 +527,11 @@ begin
   finally
     LHash.Free;
   end;
+end;
+
+procedure TBirdSocketClient.SetSubProtocol(Value: string);
+begin
+  FSubProtocol := Value;
 end;
 
 procedure TBirdSocketClient.StartHeartBeat;
