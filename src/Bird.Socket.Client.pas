@@ -67,7 +67,7 @@ type
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TEventListener); overload;
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TEventListenerError); overload;
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TNotifyEvent); overload;
-    procedure SetSubProtocol(Value: string);
+    procedure SetSubProtocol(const AValue: string);
     procedure Send(const AMessage: string); overload;
     procedure Send(const AJSONObject: TJSONObject; const AOwns: Boolean = True); overload;
     destructor Destroy; override;
@@ -202,10 +202,8 @@ begin
       LContent.Add('Upgrade: WebSocket');
       LContent.Add('Sec-WebSocket-Version: 13');
       LContent.Add(Format('Sec-WebSocket-Key: %s ', [GenerateWebSocketKey]));
-	  
-	  if FSubProtocol <> '' then
+  	  if not FSubProtocol.Trim.IsEmpty then
         LContent.Add(Format('Sec-WebSocket-Protocol: %s', [FSubProtocol]));
-	  
       LContent.Add(EmptyStr);
       FSocket.WriteLn(LContent.Text);
     finally
@@ -234,7 +232,7 @@ begin
   FAutoCreateHandler := True;
   FHeartBeatInterval := 30000;
   FURL := AURL;
-  FSubProtocol := '';
+  FSubProtocol := EmptyStr;
   Randomize;
 end;
 
@@ -529,9 +527,9 @@ begin
   end;
 end;
 
-procedure TBirdSocketClient.SetSubProtocol(Value: string);
+procedure TBirdSocketClient.SetSubProtocol(const AValue: string);
 begin
-  FSubProtocol := Value;
+  FSubProtocol := AValue;
 end;
 
 procedure TBirdSocketClient.StartHeartBeat;

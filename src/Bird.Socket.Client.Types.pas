@@ -2,7 +2,8 @@ unit Bird.Socket.Client.Types;
 
 interface
 
-uses System.SysUtils;
+uses
+  System.SysUtils;
 
 type
   TEventListener = reference to procedure(const AText: string);
