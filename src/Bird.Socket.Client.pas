@@ -159,7 +159,6 @@ procedure TBirdSocketClient.Connect;
 var
   LURI: TIdURI;
   LSecure: Boolean;
-  LContent: TStringList;
 begin
   if Connected then
     raise Exception.Create('The websocket is already connected!');
@@ -193,22 +192,16 @@ begin
     inherited Connect;
     if not LURI.Port.IsEmpty then
       LURI.Host := LURI.Host + ':' + LURI.Port;
-    LContent := TStringList.Create;
-    try
-      LContent.Add(Format('GET %s HTTP/1.1 ', [LURI.Path + LURI.Document]));
-      LContent.Add(Format('Host: %s ', [LURI.Host]));
-      LContent.Add('User-Agent: Delphi WebSocket Simple Client');
-      LContent.Add('Connection: keep-alive, Upgrade');
-      LContent.Add('Upgrade: WebSocket');
-      LContent.Add('Sec-WebSocket-Version: 13');
-      LContent.Add(Format('Sec-WebSocket-Key: %s ', [GenerateWebSocketKey]));
-  	  if not FSubProtocol.Trim.IsEmpty then
-        LContent.Add(Format('Sec-WebSocket-Protocol: %s', [FSubProtocol]));
-      LContent.Add(EmptyStr);
-      FSocket.WriteLn(LContent.Text);
-    finally
-      LContent.Free;
-    end;
+    FSocket.WriteLn(Format('GET %s HTTP/1.1', [LURI.Path + LURI.Document]));
+    FSocket.WriteLn(Format('Host: %s', [LURI.Host]));
+    FSocket.WriteLn('User-Agent: Delphi WebSocket Simple Client');
+    FSocket.WriteLn('Connection: keep-alive, Upgrade');
+    FSocket.WriteLn('Upgrade: WebSocket');
+    FSocket.WriteLn('Sec-WebSocket-Version: 13');
+    FSocket.WriteLn(Format('Sec-WebSocket-Key: %s', [GenerateWebSocketKey]));
+    if not FSubProtocol.Trim.IsEmpty then
+      FSocket.WriteLn(Format('Sec-WebSocket-Protocol: %s', [FSubProtocol]));
+    FSocket.WriteLn(EmptyStr);
     ReadFromWebSocket;
     StartHeartBeat;
   finally
