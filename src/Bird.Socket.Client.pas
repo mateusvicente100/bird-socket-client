@@ -192,7 +192,10 @@ begin
     inherited Connect;
     if not LURI.Port.IsEmpty then
       LURI.Host := LURI.Host + ':' + LURI.Port;
-    FSocket.WriteLn(Format('GET %s HTTP/1.1', [LURI.Path + LURI.Document]));
+    if (LURI.Params <> '') then
+      FSocket.WriteLn(Format('GET %s HTTP/1.1', [LURI.Path + LURI.Document + '?' + LURI.Params]))
+    else
+      FSocket.WriteLn(Format('GET %s HTTP/1.1', [LURI.Path + LURI.Document]));
     FSocket.WriteLn(Format('Host: %s', [LURI.Host]));
     FSocket.WriteLn('User-Agent: Delphi WebSocket Simple Client');
     FSocket.WriteLn('Connection: keep-alive, Upgrade');
