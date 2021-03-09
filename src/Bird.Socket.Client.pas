@@ -398,7 +398,7 @@ procedure TBirdSocketClient.ReadFromWebSocket;
 var
   LTask: ITask;
   LOperationCode: Byte;
-  LSpool: string;
+  LSpool: TIdBytes;
 begin
   if not IsValidWebSocket then
     Exit;
@@ -412,7 +412,7 @@ begin
       LLinFrame, LMasked: Boolean;
       LSize: Int64;
     begin
-      LSpool := EmptyStr;
+      SetLength(LSpool, 0);
       LPosition := 0;
       LSize := 0;
       LOperationCode := 0;
@@ -443,7 +443,7 @@ begin
           end
           else if LLinFrame then
           begin
-            LSpool := LSpool + Chr(LByte);
+            LSpool := LSpool + [LByte];
             if (FUpgraded and (Length(LSpool) = LSize)) then
             begin
               LPosition := 0;
@@ -452,7 +452,7 @@ begin
               begin
                 try
                   FInternalLock.Enter;
-                  FSocket.Write(EncodeFrame(LSpool, TOperationCode.PONG));
+                  FSocket.Write(EncodeFrame(IndyTextEncoding_UTF8.GetString(LSpool), TOperationCode.PONG));
                 finally
                   FInternalLock.Leave;
                 end;
@@ -460,9 +460,9 @@ begin
               else
               begin
                 if FUpgraded and Assigned(FOnMessage) and (not(LOperationCode = TOperationCode.CONNECTION_CLOSE.ToByte)) then
-                  FOnMessage(LSpool);
+                  FOnMessage(IndyTextEncoding_UTF8.GetString(LSpool));
               end;
-              LSpool := EmptyStr;
+              SetLength(LSpool, 0);
               if (LOperationCode = TOperationCode.CONNECTION_CLOSE.ToByte) then
               begin
                 if not FClosingEventLocalHandshake then
@@ -479,7 +479,7 @@ begin
     end);
   if ((not Connected) or (not FUpgraded)) and
     (not((LOperationCode = TOperationCode.CONNECTION_CLOSE.ToByte) or FClosingEventLocalHandshake)) then
-    raise Exception.Create('Websocket not connected or timeout ' + QuotedStr(LSpool))
+    raise Exception.Create('Websocket not connected or timeout ' + QuotedStr(IndyTextEncoding_UTF8.GetString(LSpool)))
   else if Assigned(OnUpgrade) then
     OnUpgrade(Self);
 end;
