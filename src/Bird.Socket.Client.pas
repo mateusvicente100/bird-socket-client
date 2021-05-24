@@ -37,6 +37,7 @@ type
     FOnHeartBeatTimer: TNotifyEvent;
     FOnUpgrade: TNotifyEvent;
     FSubProtocol: string;
+    FTaskReadFromWebSocket, FTaskHeartBeat: ITask;
     function GenerateWebSocketKey: string;
     function IsValidWebSocket: Boolean;
     function IsValidHeaders(const AHeaders: TStrings): Boolean;
@@ -233,7 +234,18 @@ begin
 end;
 
 destructor TBirdSocketClient.Destroy;
+var
+  taskArray: array of ITask;
 begin
+  if FTaskReadFromWebSocket <> nil then
+    taskArray := taskArray + [FTaskReadFromWebSocket];
+  if FTaskHeartBeat <> nil then
+    taskArray := taskArray + [FTaskHeartBeat];
+  if Length(taskArray) > 0 then
+    TTask.WaitForAll(taskArray);
+  FTaskReadFromWebSocket := nil;
+  FTaskHeartBeat := nil;
+  SetLength(taskArray, 0);
   if FAutoCreateHandler and Assigned(FIOHandler) then
     FIOHandler.Free;
   FInternalLock.Free;
@@ -396,7 +408,6 @@ end;
 
 procedure TBirdSocketClient.ReadFromWebSocket;
 var
-  LTask: ITask;
   LOperationCode: Byte;
   LSpool: TIdBytes;
 begin
@@ -404,7 +415,7 @@ begin
     Exit;
   if not Connected then
     Exit;
-  LTask := TTask.Run(
+  FTaskReadFromWebSocket := TTask.Run(
     procedure
     var
       LByte: Byte;
@@ -532,7 +543,7 @@ procedure TBirdSocketClient.StartHeartBeat;
 var
   LDateLastNotify: TDateTime;
 begin
-  TThread.CreateAnonymousThread(
+  FTaskHeartBeat := TTask.Run(
     procedure
     begin
       LDateLastNotify := Now;
@@ -551,7 +562,7 @@ begin
         on E:Exception do
           HandleException(E);
       end;
-    end).Start;
+    end);
 end;
 
 function TBirdSocketClient.SetBit(const AValue: Cardinal; const AByte: Byte): Cardinal;
