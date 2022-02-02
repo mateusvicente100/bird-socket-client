@@ -261,46 +261,48 @@ var
   I: Integer;
   LXorOne, LXorTwo: Char;
   LExtendedPayloadLength: Integer;
+  LMessage: RawByteString;
 begin
   LFin := 0;
+  LMessage := UTF8Encode(AMessage);
   LFin := SetBit(LFin, 7) or AOperationCode.ToByte;
   LMask := SetBit(0, 7);
   LExtendedPayloadLength := 0;
-  if (AMessage.Length <= 125) then
-    LMask := LMask + Cardinal(AMessage.Length)
-  else if (AMessage.Length.ToSingle < IntPower(2, 16)) then
+  if (Length(LMessage) <= 125) then
+    LMask := LMask + Cardinal(Length(LMessage))
+  else if (Length(LMessage).ToSingle < IntPower(2, 16)) then
   begin
     LMask := LMask + 126;
     LExtendedPayloadLength := 2;
-    LExtendedPayloads[1] := Byte(AMessage.Length);
-    LExtendedPayloads[0] := Byte(AMessage.Length shr 8);
+    LExtendedPayloads[1] := Byte(Length(LMessage));
+    LExtendedPayloads[0] := Byte(Length(LMessage) shr 8);
   end
   else
   begin
     LMask := LMask + 127;
     LExtendedPayloadLength := 4;
-    LExtendedPayloads[3] := Byte(AMessage.Length);
-    LExtendedPayloads[2] := Byte(AMessage.Length shr 8);
-    LExtendedPayloads[1] := Byte(AMessage.Length shr 16);
-    LExtendedPayloads[0] := Byte(AMessage.Length shr 32);
+    LExtendedPayloads[3] := Byte(Length(LMessage));
+    LExtendedPayloads[2] := Byte(Length(LMessage) shr 8);
+    LExtendedPayloads[1] := Byte(Length(LMessage) shr 16);
+    LExtendedPayloads[0] := Byte(Length(LMessage) shr 32);
   end;
   LMaskingKey[0] := Random(255);
   LMaskingKey[1] := Random(255);
   LMaskingKey[2] := Random(255);
   LMaskingKey[3] := Random(255);
-  SetLength(LBuffer, 1 + 1 + LExtendedPayloadLength + 4 + AMessage.Length);
+  SetLength(LBuffer, 1 + 1 + LExtendedPayloadLength + 4 + Length(LMessage));
   LBuffer[0] := LFin;
   LBuffer[1] := LMask;
   for I := 0 to Pred(LExtendedPayloadLength) do
     LBuffer[1 + 1 + I] := LExtendedPayloads[I];
   for I := 0 to 3 do
     LBuffer[ 1 + 1 + LExtendedPayloadLength + I] := LMaskingKey[I];
-  for I := 0 to Pred(AMessage.Length) do
+  for I := 0 to Pred(Length(LMessage)) do
   begin
     {$IF DEFINED(iOS) or DEFINED(ANDROID)}
-    LXorOne := AMessage[I];
+    LXorOne := Char(LMessage[I]);
     {$ELSE}
-    LXorOne := AMessage[Succ(I)];
+    LXorOne := Char(LMessage[Succ(I)]);
     {$ENDIF}
     LXorTwo :=  Chr(LMaskingKey[((I) mod 4)]);
     LXorTwo := Chr(ord(LXorOne) xor ord(LXorTwo));
