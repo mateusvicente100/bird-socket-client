@@ -16,14 +16,18 @@ uses
   IdCoderMIME,
   IdHashSHA,
   Bird.Socket.Client.Types,
+  System.Generics.Collections,
   System.JSON;
 
 type
   TOperationCode = Bird.Socket.Client.Types.TOperationCode;
+
   TEventType = Bird.Socket.Client.Types.TEventType;
+
   TBirdSocketClient = class(TIdTCPClient)
   private
     FInternalLock: TCriticalSection;
+    FHeader: TDictionary<string, string>;
     FURL: string;
     FSecWebSocketAcceptExpectedResponse: string;
     FHeartBeatInterval: Cardinal;
@@ -41,7 +45,7 @@ type
     function GenerateWebSocketKey: string;
     function IsValidWebSocket: Boolean;
     function IsValidHeaders(const AHeaders: TStrings): Boolean;
-    function EncodeFrame(const AMessage: string; const AOperationCode: TOperationCode = TOperationCode.TEXT_FRAME): TIdBytes;
+    function EncodeFrame(const AMessage: RawByteString; const AOperationCode: TOperationCode = TOperationCode.TEXT_FRAME): TIdBytes;
     function GetBit(const AValue: Cardinal; const AByte: Byte): Boolean;
     function SetBit(const AValue: Cardinal; const AByte: Byte): Cardinal;
     function ClearBit(const AValue: Cardinal; const AByte: Byte): Cardinal;
@@ -65,21 +69,29 @@ type
     property AutoCreateHandler: Boolean read FAutoCreateHandler write FAutoCreateHandler;
     function Connected: Boolean; override;
     procedure Connect; override;
+    procedure SetHeader(const key:string; const value:string);
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TEventListener); overload;
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TEventListenerError); overload;
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TNotifyEvent); overload;
     procedure SetSubProtocol(const AValue: string);
     procedure Send(const AMessage: string); overload;
+    procedure Send(const AMessage: RawByteString); overload;
     procedure Send(const AJSONObject: TJSONObject; const AOwns: Boolean = True); overload;
     destructor Destroy; override;
   end;
 
 implementation
 
+
+procedure TBirdSocketClient.SetHeader(const key:string; const value:string);
+begin
+  FHeader.AddOrSetValue(key, value);
+end;
+
 procedure TBirdSocketClient.AddEventListener(const AEventType: TEventType; const AEvent: TNotifyEvent);
 begin
   case AEventType of
-    TEventType.CLOSE:
+    TEventType.Close:
       begin
         if Assigned(FOnClose) then
           raise Exception.Create('The close event listener is already assigned!');
@@ -97,8 +109,8 @@ begin
           raise Exception.Create('The heart beat timer event listener is already assigned!');
         FOnHeartBeatTimer := AEvent;
       end;
-    else
-      raise Exception.Create('This is not an valid event!');
+  else
+    raise Exception.Create('This is not an valid event!');
   end;
 end;
 
@@ -126,8 +138,8 @@ begin
           raise Exception.Create('The message event listener is already assigned!');
         FOnMessage := AEvent;
       end;
-    else
-      raise Exception.Create('This is not an valid event!');
+  else
+    raise Exception.Create('This is not an valid event!');
   end;
 end;
 
@@ -198,7 +210,10 @@ begin
     else
       FSocket.WriteLn(Format('GET %s HTTP/1.1', [LURI.Path + LURI.Document]));
     FSocket.WriteLn(Format('Host: %s', [LURI.Host]));
-    FSocket.WriteLn('User-Agent: Delphi WebSocket Simple Client');
+    // add Header
+    for var LPair in FHeader do
+      FSocket.WriteLn(Format('%s: %s', [LPair.Key, LPair.Value]));
+    // FSocket.WriteLn('User-Agent: Delphi WebSocket Simple Client');
     FSocket.WriteLn('Connection: keep-alive, Upgrade');
     FSocket.WriteLn('Upgrade: WebSocket');
     FSocket.WriteLn('Sec-WebSocket-Version: 13');
@@ -230,6 +245,7 @@ begin
   FHeartBeatInterval := 30000;
   FURL := AURL;
   FSubProtocol := EmptyStr;
+  FHeader := TDictionary<string, string>.Create;
   Randomize;
 end;
 
@@ -252,10 +268,10 @@ begin
   inherited;
 end;
 
-function TBirdSocketClient.EncodeFrame(const AMessage: string; const AOperationCode: TOperationCode): TIdBytes;
+function TBirdSocketClient.EncodeFrame(const AMessage: RawByteString; const AOperationCode: TOperationCode): TIdBytes;
 var
   LFin, LMask: Cardinal;
-  LMaskingKey: array[0..3] of cardinal;
+  LMaskingKey: array[0..3] of Cardinal;
   LExtendedPayloads: array[0..3] of Cardinal;
   LBuffer: TIdBytes;
   I: Integer;
@@ -264,7 +280,14 @@ var
   LMessage: RawByteString;
 begin
   LFin := 0;
-  LMessage := UTF8Encode(AMessage);
+  if AOperationCode <> TOperationCode.BINARY_FRAME then
+  begin
+    LMessage := UTF8Encode(AMessage);
+  end
+  else
+  begin
+    LMessage := AMessage;
+  end;
   LFin := SetBit(LFin, 7) or AOperationCode.ToByte;
   LMask := SetBit(0, 7);
   LExtendedPayloadLength := 0;
@@ -296,17 +319,17 @@ begin
   for I := 0 to Pred(LExtendedPayloadLength) do
     LBuffer[1 + 1 + I] := LExtendedPayloads[I];
   for I := 0 to 3 do
-    LBuffer[ 1 + 1 + LExtendedPayloadLength + I] := LMaskingKey[I];
+    LBuffer[1 + 1 + LExtendedPayloadLength + I] := LMaskingKey[I];
   for I := 0 to Pred(Length(LMessage)) do
   begin
-    {$IF DEFINED(iOS) or DEFINED(ANDROID)}
+{$IF DEFINED(iOS) or DEFINED(ANDROID)}
     LXorOne := Char(LMessage[I]);
-    {$ELSE}
+{$ELSE}
     LXorOne := Char(LMessage[Succ(I)]);
-    {$ENDIF}
-    LXorTwo :=  Chr(LMaskingKey[((I) mod 4)]);
+{$ENDIF}
+    LXorTwo := Chr(LMaskingKey[((I) mod 4)]);
     LXorTwo := Chr(ord(LXorOne) xor ord(LXorTwo));
-    LBuffer[1 + 1 + LExtendedPayloadLength + 4 + I] := Ord(LXorTwo);
+    LBuffer[1 + 1 + LExtendedPayloadLength + 4 + I] := ord(LXorTwo);
   end;
   Result := LBuffer;
 end;
@@ -318,7 +341,7 @@ var
 begin
   SetLength(LBytes, 16);
   for I := Low(LBytes) to High(LBytes) do
-    LBytes[i] := byte(random(255));
+    LBytes[I] := Byte(Random(255));
   Result := TIdEncoderMIME.EncodeBytes(LBytes);
   SetSecWebSocketAcceptExpectedResponse(Result + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11');
 end;
@@ -364,7 +387,7 @@ var
   LHeaders: TStringlist;
 begin
   LSpool := EmptyStr;
-  LHeaders := TStringList.Create;
+  LHeaders := TStringlist.Create;
   try
     try
       FUpgraded := False;
@@ -372,7 +395,7 @@ begin
       begin
         LByte := FSocket.ReadByte;
         LSpool := LSpool + Chr(LByte);
-        if (not FUpgraded) and (LByte = Ord(#13)) then
+        if (not FUpgraded) and (LByte = ord(#13)) then
         begin
           if (LSpool = #10#13) then
           begin
@@ -392,7 +415,7 @@ begin
       end;
       Result := True;
     except
-      on E:Exception do
+      on E: Exception do
       begin
         HandleException(E);
         Result := False;
@@ -412,6 +435,7 @@ procedure TBirdSocketClient.ReadFromWebSocket;
 var
   LOperationCode: Byte;
   LSpool: TIdBytes;
+  RawStr: RawByteString;
 begin
   if not IsValidWebSocket then
     Exit;
@@ -436,8 +460,19 @@ begin
           LByte := FSocket.ReadByte;
           if FUpgraded and (LPosition = 0) and GetBit(LByte, 7) then
           begin
-            LLinFrame := True;
             LOperationCode := ClearBit(LByte, 7);
+            // check range
+            if (LOperationCode >= 3) and (LOperationCode <= 7) then
+            begin
+              HandleException(Exception.Create('reserved non-control frames'));
+              Continue;
+            end
+            else if (LOperationCode > 11) then
+            begin
+              HandleException(Exception.Create('reserved control frames'));
+              Continue;
+            end;
+            LLinFrame := True;
             Inc(LPosition);
           end
           else if FUpgraded and (LPosition = 1) then
@@ -461,37 +496,56 @@ begin
             begin
               LPosition := 0;
               LLinFrame := False;
-              if (LOperationCode = TOperationCode.PING.ToByte) then
-              begin
-                try
-                  FInternalLock.Enter;
-                  FSocket.Write(EncodeFrame(IndyTextEncoding_UTF8.GetString(LSpool), TOperationCode.PONG));
-                finally
-                  FInternalLock.Leave;
+              try
+                // ping and pong
+                if (LOperationCode = TOperationCode.PING.ToByte) or (LOperationCode = TOperationCode.PONG.ToByte) then
+                begin
+                  try
+                    FInternalLock.Enter;
+                    // or not response is fine
+                    FSocket.Write(EncodeFrame(IndyTextEncoding_UTF8.GetString(LSpool), TOperationCode.PONG));
+                  finally
+                    FInternalLock.Leave;
+                  end;
+                end
+                // close
+                else if (LOperationCode = TOperationCode.CONNECTION_CLOSE.ToByte) then
+                begin
+                  if not FClosingEventLocalHandshake then
+                    Self.Close;
+                  Break
+                end
+                else
+                begin
+                  if FUpgraded then
+                  begin
+                    // data too long problem fixed
+                    // check binary frame
+                    if LOperationCode = TOperationCode.BINARY_FRAME.ToByte then
+                    begin
+                      SetString(RawStr, PAnsiChar(@LSpool[0]), Length(LSpool));
+                      FOnMessage(RawStr);
+                    end
+                    // check text frame
+                    else if LOperationCode = TOperationCode.TEXT_FRAME.ToByte then
+                    begin
+                      FOnMessage(IndyTextEncoding_UTF8.GetString(LSpool));
+                    end;
+                  end;
                 end;
-              end
-              else
-              begin
-                if FUpgraded and Assigned(FOnMessage) and (not(LOperationCode = TOperationCode.CONNECTION_CLOSE.ToByte)) then
-                  FOnMessage(IndyTextEncoding_UTF8.GetString(LSpool));
-              end;
-              SetLength(LSpool, 0);
-              if (LOperationCode = TOperationCode.CONNECTION_CLOSE.ToByte) then
-              begin
-                if not FClosingEventLocalHandshake then
-                  Self.Close;
-                Break
+              finally
+                SetLength(RawStr, 0);
+                SetLength(LSpool, 0);
               end;
             end;
           end;
         end;
       except
-        on e:Exception do
+        on E: Exception do
           HandleException(E);
       end;
     end);
-  if ((not Connected) or (not FUpgraded)) and
-    (not((LOperationCode = TOperationCode.CONNECTION_CLOSE.ToByte) or FClosingEventLocalHandshake)) then
+  if ((not Connected) or (not FUpgraded)) and (not ((LOperationCode = TOperationCode.CONNECTION_CLOSE.ToByte) or FClosingEventLocalHandshake)) then
     raise Exception.Create('Websocket not connected or timeout ' + QuotedStr(IndyTextEncoding_UTF8.GetString(LSpool)))
   else if Assigned(OnUpgrade) then
     OnUpgrade(Self);
@@ -502,6 +556,16 @@ begin
   try
     FInternalLock.Enter;
     FSocket.Write(EncodeFrame(AMessage));
+  finally
+    FInternalLock.Leave;
+  end;
+end;
+
+procedure TBirdSocketClient.Send(const AMessage: RawByteString);
+begin
+  try
+    FInternalLock.Enter;
+    FSocket.Write(EncodeFrame(AMessage, TOperationCode.BINARY_FRAME));
   finally
     FInternalLock.Leave;
   end;
@@ -552,7 +616,7 @@ begin
       try
         while (Connected) and (HeartBeatInterval > 0) do
         begin
-          if (MilliSecondsBetween(LDateLastNotify, Now) >= Floor(self.HeartBeatInterval)) then
+          if (MilliSecondsBetween(LDateLastNotify, Now) >= Floor(Self.HeartBeatInterval)) then
           begin
             if Assigned(OnHeartBeatTimer) then
               OnHeartBeatTimer(Self);
@@ -561,7 +625,7 @@ begin
           TThread.Sleep(500);
         end;
       except
-        on E:Exception do
+        on E: Exception do
           HandleException(E);
       end;
     end);
@@ -573,3 +637,4 @@ begin
 end;
 
 end.
+
