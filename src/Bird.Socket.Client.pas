@@ -172,6 +172,7 @@ procedure TBirdSocketClient.Connect;
 var
   LURI: TIdURI;
   LSecure: Boolean;
+  LPair: string;
 begin
   if Connected then
     raise Exception.Create('The websocket is already connected!');
@@ -210,10 +211,8 @@ begin
     else
       FSocket.WriteLn(Format('GET %s HTTP/1.1', [LURI.Path + LURI.Document]));
     FSocket.WriteLn(Format('Host: %s', [LURI.Host]));
-    // add Header
-    for var LPair in FHeader do
-      FSocket.WriteLn(Format('%s: %s', [LPair.Key, LPair.Value]));
-    // FSocket.WriteLn('User-Agent: Delphi WebSocket Simple Client');
+    for LPair in FHeader.Keys do
+      FSocket.WriteLn(Format('%s: %s', [LPair, FHeader.Items[LPair]]));
     FSocket.WriteLn('Connection: keep-alive, Upgrade');
     FSocket.WriteLn('Upgrade: WebSocket');
     FSocket.WriteLn('Sec-WebSocket-Version: 13');
@@ -370,7 +369,7 @@ begin
     Exit;
   if (not AHeaders[0].Contains('HTTP/1.1 101')) and (AHeaders[0].Contains('HTTP/1.1')) then
     raise Exception.Create(AHeaders[0].Substring(9));
-  if AHeaders.Values['Connection'].Trim.ToLower.Equals('upgrade') and AHeaders.Values['Upgrade'].Trim.ToLower.Equals('websocket') then
+  if AHeaders.Values['Connection'].Trim.ToLower.contains('upgrade') and AHeaders.Values['Upgrade'].Trim.ToLower.Equals('websocket') then
   begin
     if AHeaders.Values['Sec-WebSocket-Accept'].Trim.Equals(FSecWebSocketAcceptExpectedResponse) then
       Exit(True);
