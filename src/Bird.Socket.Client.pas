@@ -274,6 +274,7 @@ begin
   if FAutoCreateHandler and Assigned(FIOHandler) then
     FIOHandler.Free;
   FInternalLock.Free;
+  FHeader.Free;
   inherited;
 end;
 
@@ -558,6 +559,9 @@ end;
 
 procedure TBirdSocketClient.Send(const AMessage: string);
 begin
+  if not Assigned(FSocket) then
+    Exit;
+
   try
     FInternalLock.Enter;
 
