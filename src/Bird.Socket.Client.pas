@@ -45,7 +45,7 @@ type
     function GenerateWebSocketKey: string;
     function IsValidWebSocket: Boolean;
     function IsValidHeaders(const AHeaders: TStrings): Boolean;
-    function EncodeFrame(const AMessage: RawByteString; const AOperationCode: TOperationCode = TOperationCode.TEXT_FRAME): TIdBytes;
+    function EncodeFrame(const AMessage: String; const AOperationCode: TOperationCode = TOperationCode.TEXT_FRAME): TIdBytes;
     function GetBit(const AValue: Cardinal; const AByte: Byte): Boolean;
     function SetBit(const AValue: Cardinal; const AByte: Byte): Cardinal;
     function ClearBit(const AValue: Cardinal; const AByte: Byte): Cardinal;
@@ -56,6 +56,8 @@ type
     procedure StartHeartBeat;
     procedure Close;
     constructor Create(const AURL: string); reintroduce;
+    procedure TriggerOnMessage(const AMsg: string);
+    function BytesToString(const ABytes: TBytes; AEncoding: TEncoding = nil): string;
   protected
     property OnMessage: TEventListener read FOnMessage write FOnMessage;
     property OnOpen: TEventListener read FOnOpen write FOnOpen;
@@ -75,7 +77,7 @@ type
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TNotifyEvent); overload;
     procedure SetSubProtocol(const AValue: string);
     procedure Send(const AMessage: string); overload;
-    procedure Send(const AMessage: RawByteString); overload;
+    procedure Send(const AMessage: TBytes; AEncoding: TEncoding = nil); overload;
     procedure Send(const AJSONObject: TJSONObject; const AOwns: Boolean = True); overload;
     destructor Destroy; override;
   end;
@@ -112,6 +114,14 @@ begin
   else
     raise Exception.Create('This is not an valid event!');
   end;
+end;
+
+function TBirdSocketClient.BytesToString(const ABytes: TBytes; AEncoding: TEncoding): string;
+begin
+  // Use a codificação padrao UTF-8
+  if AEncoding = nil then
+    AEncoding := TEncoding.UTF8;
+  Result := AEncoding.GetString(ABytes);
 end;
 
 procedure TBirdSocketClient.AddEventListener(const AEventType: TEventType; const AEvent: TEventListenerError);
@@ -264,10 +274,11 @@ begin
   if FAutoCreateHandler and Assigned(FIOHandler) then
     FIOHandler.Free;
   FInternalLock.Free;
+  FHeader.Free;
   inherited;
 end;
 
-function TBirdSocketClient.EncodeFrame(const AMessage: RawByteString; const AOperationCode: TOperationCode): TIdBytes;
+function TBirdSocketClient.EncodeFrame(const AMessage: String; const AOperationCode: TOperationCode): TIdBytes;
 var
   LFin, LMask: Cardinal;
   LMaskingKey: array[0..3] of Cardinal;
@@ -276,16 +287,16 @@ var
   I: Integer;
   LXorOne, LXorTwo: Char;
   LExtendedPayloadLength: Integer;
-  LMessage: RawByteString;
+  LMessage: TBytes;
 begin
   LFin := 0;
   if AOperationCode <> TOperationCode.BINARY_FRAME then
   begin
-    LMessage := UTF8Encode(AMessage);
+    LMessage := TEncoding.UTF8.GetBytes(AMessage);
   end
   else
   begin
-    LMessage := AMessage;
+    LMessage := TEncoding.ANSI.GetBytes(AMessage);
   end;
   LFin := SetBit(LFin, 7) or AOperationCode.ToByte;
   LMask := SetBit(0, 7);
@@ -321,11 +332,7 @@ begin
     LBuffer[1 + 1 + LExtendedPayloadLength + I] := LMaskingKey[I];
   for I := 0 to Pred(Length(LMessage)) do
   begin
-{$IF DEFINED(iOS) or DEFINED(ANDROID)}
     LXorOne := Char(LMessage[I]);
-{$ELSE}
-    LXorOne := Char(LMessage[Succ(I)]);
-{$ENDIF}
     LXorTwo := Chr(LMaskingKey[((I) mod 4)]);
     LXorTwo := Chr(ord(LXorOne) xor ord(LXorTwo));
     LBuffer[1 + 1 + LExtendedPayloadLength + 4 + I] := ord(LXorTwo);
@@ -434,7 +441,7 @@ procedure TBirdSocketClient.ReadFromWebSocket;
 var
   LOperationCode: Byte;
   LSpool: TIdBytes;
-  RawStr: RawByteString;
+  LRawStr: String;
 begin
   if not IsValidWebSocket then
     Exit;
@@ -522,18 +529,18 @@ begin
                     // check binary frame
                     if LOperationCode = TOperationCode.BINARY_FRAME.ToByte then
                     begin
-                      SetString(RawStr, PAnsiChar(@LSpool[0]), Length(LSpool));
-                      FOnMessage(RawStr);
+                      SetString(LRawStr, PAnsiChar(@LSpool[0]), Length(LSpool));
+                      TriggerOnMessage(LRawStr);
                     end
                     // check text frame
                     else if LOperationCode = TOperationCode.TEXT_FRAME.ToByte then
                     begin
-                      FOnMessage(IndyTextEncoding_UTF8.GetString(LSpool));
+                      TriggerOnMessage(IndyTextEncoding_UTF8.GetString(LSpool));
                     end;
                   end;
                 end;
               finally
-                SetLength(RawStr, 0);
+                SetLength(LRawStr, 0);
                 SetLength(LSpool, 0);
               end;
             end;
@@ -552,19 +559,23 @@ end;
 
 procedure TBirdSocketClient.Send(const AMessage: string);
 begin
+  if not Assigned(FSocket) then
+    Exit;
+
   try
     FInternalLock.Enter;
+
     FSocket.Write(EncodeFrame(AMessage));
   finally
     FInternalLock.Leave;
   end;
 end;
 
-procedure TBirdSocketClient.Send(const AMessage: RawByteString);
+procedure TBirdSocketClient.Send(const AMessage: TBytes; AEncoding: TEncoding);
 begin
   try
     FInternalLock.Enter;
-    FSocket.Write(EncodeFrame(AMessage, TOperationCode.BINARY_FRAME));
+    FSocket.Write(EncodeFrame(BytesToString(AMessage, AEncoding), TOperationCode.BINARY_FRAME));
   finally
     FInternalLock.Leave;
   end;
@@ -627,6 +638,16 @@ begin
         on E: Exception do
           HandleException(E);
       end;
+    end);
+end;
+
+procedure TBirdSocketClient.TriggerOnMessage(const AMsg: string);
+begin
+  TThread.Queue(nil,
+    procedure
+    begin
+      if Assigned(FOnMessage) then
+        FOnMessage(AMsg);
     end);
 end;
 
