@@ -199,10 +199,14 @@ begin
   case AEventType of
     TEventType.OPEN:
       begin
+        if Assigned(FOnOpen) then
+          raise Exception.Create('The open event listener is already assigned!');
         FOnOpen := AEvent;
       end;
     TEventType.MESSAGE:
       begin
+        if Assigned(FOnMessage) then
+          raise Exception.Create('The message event listener is already assigned!');
         FOnMessage := AEvent;
       end;
   else
