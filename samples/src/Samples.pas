@@ -66,13 +66,22 @@ procedure TFrmMainMenu.Connect;
 begin
   try
     FBirdSocket := TBirdSocketClient.New(edtServer.Text);
+
     FBirdSocket.AddEventListener(TEventType.MESSAGE,
       procedure(const AText: string)
       begin
         Log(AText);
       end);
+
+    FBirdSocket
+      .AutoReconnect
+        .Active(True)
+        .Interval(20000);
+
     FBirdSocket.Connect;
+
     FBirdSocket.Send('Hello Server');
+
     HandlerButtons(True);
   except
     on E:Exception do

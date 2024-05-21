@@ -17,14 +17,16 @@ uses
   IdHashSHA,
   Bird.Socket.Client.Types,
   System.Generics.Collections,
-  System.JSON;
+  System.JSON,
+  Bird.Socket.Client.ConnectionMonitor,
+  Bird.Socket.Client.ConnectionMonitor.Interfaces;
 
 type
   TOperationCode = Bird.Socket.Client.Types.TOperationCode;
 
   TEventType = Bird.Socket.Client.Types.TEventType;
 
-  TBirdSocketClient = class(TIdTCPClient)
+  TBirdSocketClient = class(TIdTCPClient, IBirdSocketClientConnectionMonitor, IBirdSocketClientConnectionMonitorParams)
   private
     FInternalLock: TCriticalSection;
     FHeader: TDictionary<string, string>;
@@ -42,6 +44,9 @@ type
     FOnUpgrade: TNotifyEvent;
     FSubProtocol: string;
     FTaskReadFromWebSocket, FTaskHeartBeat: ITask;
+    FAutoReconnect: Boolean;
+    FAutoReconnectInterval: Integer;
+    FConnectionMonitor: TBirdSocketClientConnectionMonitor;
     function GenerateWebSocketKey: string;
     function IsValidWebSocket: Boolean;
     function IsValidHeaders(const AHeaders: TStrings): Boolean;
@@ -58,6 +63,12 @@ type
     constructor Create(const AURL: string); reintroduce;
     procedure TriggerOnMessage(const AMsg: string);
     function BytesToString(const ABytes: TBytes; AEncoding: TEncoding = nil): string;
+    procedure ApplyHeaders(const AURI: TIdURI);
+    procedure StartConnectionMonitor;
+    procedure Reconnect;
+    function Active(const AValue: Boolean): IBirdSocketClientConnectionMonitorParams;
+    function Interval(const AValue: Integer): IBirdSocketClientConnectionMonitorParams;
+    procedure FreeConnectionMonitorThread;
   protected
     property OnMessage: TEventListener read FOnMessage write FOnMessage;
     property OnOpen: TEventListener read FOnOpen write FOnOpen;
@@ -71,6 +82,7 @@ type
     property AutoCreateHandler: Boolean read FAutoCreateHandler write FAutoCreateHandler;
     function Connected: Boolean; override;
     procedure Connect; override;
+    procedure Disconnect;
     procedure SetHeader(const key:string; const value:string);
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TEventListener); overload;
     procedure AddEventListener(const AEventType: TEventType; const AEvent: TEventListenerError); overload;
@@ -79,6 +91,7 @@ type
     procedure Send(const AMessage: string); overload;
     procedure Send(const AMessage: TBytes; AEncoding: TEncoding = nil); overload;
     procedure Send(const AJSONObject: TJSONObject; const AOwns: Boolean = True); overload;
+    function AutoReconnect: IBirdSocketClientConnectionMonitorParams;
     destructor Destroy; override;
   end;
 
@@ -88,6 +101,12 @@ implementation
 procedure TBirdSocketClient.SetHeader(const key:string; const value:string);
 begin
   FHeader.AddOrSetValue(key, value);
+end;
+
+function TBirdSocketClient.Active(const AValue: Boolean): IBirdSocketClientConnectionMonitorParams;
+begin
+  Result := Self;
+  FAutoReconnect := AValue;
 end;
 
 procedure TBirdSocketClient.AddEventListener(const AEventType: TEventType; const AEvent: TNotifyEvent);
@@ -116,6 +135,48 @@ begin
   end;
 end;
 
+procedure TBirdSocketClient.ApplyHeaders(const AURI: TIdURI);
+
+  procedure _ApplyCustomHeaders;
+  var
+    LPair: string;
+  begin
+    for LPair in FHeader.Keys do
+      FSocket.WriteLn(Format('%s: %s', [LPair, FHeader.Items[LPair]]));
+  end;
+
+begin
+  if not AURI.Port.IsEmpty then
+    AURI.Host := AURI.Host + ':' + AURI.Port;
+
+  if (AURI.Params <> '') then
+    FSocket.WriteLn(Format('GET %s HTTP/1.1', [AURI.Path + AURI.Document + '?' + AURI.Params]))
+  else
+    FSocket.WriteLn(Format('GET %s HTTP/1.1', [AURI.Path + AURI.Document]));
+
+  FSocket.WriteLn(Format('Host: %s', [AURI.Host]));
+
+  _ApplyCustomHeaders;
+
+  FSocket.WriteLn('Connection: keep-alive, Upgrade');
+
+  FSocket.WriteLn('Upgrade: WebSocket');
+
+  FSocket.WriteLn('Sec-WebSocket-Version: 13');
+
+  FSocket.WriteLn(Format('Sec-WebSocket-Key: %s', [GenerateWebSocketKey]));
+
+  if not FSubProtocol.Trim.IsEmpty then
+    FSocket.WriteLn(Format('Sec-WebSocket-Protocol: %s', [FSubProtocol]));
+
+  FSocket.WriteLn(EmptyStr);
+end;
+
+function TBirdSocketClient.AutoReconnect: IBirdSocketClientConnectionMonitorParams;
+begin
+  Result := Self;
+end;
+
 function TBirdSocketClient.BytesToString(const ABytes: TBytes; AEncoding: TEncoding): string;
 begin
   // Use a codificação padrao UTF-8
@@ -138,14 +199,10 @@ begin
   case AEventType of
     TEventType.OPEN:
       begin
-        if Assigned(FOnOpen) then
-          raise Exception.Create('The open event listener is already assigned!');
         FOnOpen := AEvent;
       end;
     TEventType.MESSAGE:
       begin
-        if Assigned(FOnMessage) then
-          raise Exception.Create('The message event listener is already assigned!');
         FOnMessage := AEvent;
       end;
   else
@@ -182,7 +239,6 @@ procedure TBirdSocketClient.Connect;
 var
   LURI: TIdURI;
   LSecure: Boolean;
-  LPair: string;
 begin
   if Connected then
     raise Exception.Create('The websocket is already connected!');
@@ -214,24 +270,12 @@ begin
         raise Exception.Create('To use a secure connection you need to assign a TIdSSLIOHandlerSocketOpenSSL descendant');
     end;
     inherited Connect;
-    if not LURI.Port.IsEmpty then
-      LURI.Host := LURI.Host + ':' + LURI.Port;
-    if (LURI.Params <> '') then
-      FSocket.WriteLn(Format('GET %s HTTP/1.1', [LURI.Path + LURI.Document + '?' + LURI.Params]))
-    else
-      FSocket.WriteLn(Format('GET %s HTTP/1.1', [LURI.Path + LURI.Document]));
-    FSocket.WriteLn(Format('Host: %s', [LURI.Host]));
-    for LPair in FHeader.Keys do
-      FSocket.WriteLn(Format('%s: %s', [LPair, FHeader.Items[LPair]]));
-    FSocket.WriteLn('Connection: keep-alive, Upgrade');
-    FSocket.WriteLn('Upgrade: WebSocket');
-    FSocket.WriteLn('Sec-WebSocket-Version: 13');
-    FSocket.WriteLn(Format('Sec-WebSocket-Key: %s', [GenerateWebSocketKey]));
-    if not FSubProtocol.Trim.IsEmpty then
-      FSocket.WriteLn(Format('Sec-WebSocket-Protocol: %s', [FSubProtocol]));
-    FSocket.WriteLn(EmptyStr);
+
+    ApplyHeaders(LURI);
     ReadFromWebSocket;
     StartHeartBeat;
+    if FAutoReconnect and not Assigned(FConnectionMonitor) then
+      StartConnectionMonitor;
   finally
     LURI.Free;
   end;
@@ -255,27 +299,46 @@ begin
   FURL := AURL;
   FSubProtocol := EmptyStr;
   FHeader := TDictionary<string, string>.Create;
+  FAutoReconnect := False;
+  FAutoReconnectInterval := 30000;
   Randomize;
 end;
 
 destructor TBirdSocketClient.Destroy;
 var
   taskArray: array of ITask;
+
 begin
+  FreeConnectionMonitorThread;
+
   if FTaskReadFromWebSocket <> nil then
     taskArray := taskArray + [FTaskReadFromWebSocket];
+
   if FTaskHeartBeat <> nil then
     taskArray := taskArray + [FTaskHeartBeat];
+
   if Length(taskArray) > 0 then
     TTask.WaitForAll(taskArray);
+
   FTaskReadFromWebSocket := nil;
+
   FTaskHeartBeat := nil;
+
   SetLength(taskArray, 0);
+
   if FAutoCreateHandler and Assigned(FIOHandler) then
     FIOHandler.Free;
+
   FInternalLock.Free;
+
   FHeader.Free;
   inherited;
+end;
+
+procedure TBirdSocketClient.Disconnect;
+begin
+  inherited Disconnect;
+  FreeConnectionMonitorThread;
 end;
 
 function TBirdSocketClient.EncodeFrame(const AMessage: String; const AOperationCode: TOperationCode): TIdBytes;
@@ -340,6 +403,16 @@ begin
   Result := LBuffer;
 end;
 
+procedure TBirdSocketClient.FreeConnectionMonitorThread;
+begin
+  if Assigned(FConnectionMonitor) then
+  begin
+    FConnectionMonitor.Terminate;
+    FConnectionMonitor.WaitFor;
+    FreeAndNil(FConnectionMonitor);
+  end;
+end;
+
 function TBirdSocketClient.GenerateWebSocketKey: string;
 var
   LBytes: TIdBytes;
@@ -366,6 +439,12 @@ begin
     FOnError(AException, LForceDisconnect);
   if LForceDisconnect then
     Self.Close;
+end;
+
+function TBirdSocketClient.Interval(const AValue: Integer): IBirdSocketClientConnectionMonitorParams;
+begin
+  Result := Self;
+  FAutoReconnectInterval := AValue;
 end;
 
 function TBirdSocketClient.IsValidHeaders(const AHeaders: TStrings): Boolean;
@@ -557,9 +636,15 @@ begin
     OnUpgrade(Self);
 end;
 
+procedure TBirdSocketClient.Reconnect;
+begin
+  //Disconnect;
+  Connect;
+end;
+
 procedure TBirdSocketClient.Send(const AMessage: string);
 begin
-  if not Assigned(FSocket) then
+  if not Assigned(FSocket) or not Connected then
     Exit;
 
   try
@@ -613,6 +698,15 @@ end;
 procedure TBirdSocketClient.SetSubProtocol(const AValue: string);
 begin
   FSubProtocol := AValue;
+end;
+
+procedure TBirdSocketClient.StartConnectionMonitor;
+begin
+  FConnectionMonitor := TBirdSocketClientConnectionMonitor.Create(False, FAutoReconnectInterval,
+    function: Boolean
+    begin
+      Result := Connected;
+    end, Reconnect);
 end;
 
 procedure TBirdSocketClient.StartHeartBeat;
